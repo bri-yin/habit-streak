@@ -1,0 +1,577 @@
+---
+description: Product requirements for the habit tracker iOS app. Apply when implementing any feature or making architectural decisions.
+alwaysApply: true
+---
+
+# Habit Tracker iOS App: Product Requirements Document
+
+A native iOS habit tracking app built in SwiftUI. Faithful recreation of the polished dark-mode habit tracker from the inspiration screenshots, with all features completely free.
+
+---
+
+## 1. Overview
+
+### Goal
+Build a feature-complete native iOS habit tracker showcased as a portfolio project. The app demonstrates SwiftUI craft (custom controls, animations, data visualization), data persistence (SwiftData), and native iOS interaction patterns (context menus, sheets, haptics, notifications). The end result is a polished, App Store-quality build that can be linked from a personal portfolio site.
+
+### Non-goals
+- Multi-device sync via iCloud (deferred to future)
+- macOS or iPad-optimized variants (universal app builds fine, but layout is iPhone-first)
+- Account or social features
+
+### Success criteria
+- Smooth 60fps animations across all interactions
+- Loads in under 1 second on iPhone 12 or newer
+- All features work fully offline
+- Notifications fire reliably for reminder-enabled habits
+- Zero crashes in normal usage flows
+
+---
+
+## 2. Tech Stack
+
+- **Language**: Swift 5.9+
+- **UI**: SwiftUI (iOS 17+ minimum deployment target)
+- **Persistence**: SwiftData
+- **State**: `@Observable` macro for view models, `@Environment` for shared store
+- **Charts**: Swift Charts (iOS 16+ framework, native)
+- **Notifications**: UserNotifications framework
+- **Haptics**: CoreHaptics or `UIImpactFeedbackGenerator`
+- **Sharing**: `ShareLink` (SwiftUI native)
+
+### Rationale
+SwiftUI + SwiftData is the modern Apple-recommended stack for new iOS apps. Swift Charts handles the progress chart natively. SwiftData's `@Model` macro keeps the persistence layer minimal. No third-party dependencies needed, which keeps the build clean and demonstrates pure native craft for portfolio purposes. Home screen widgets are deferred to v2 since they require a paid Apple Developer Program account ($99/year) for App Groups provisioning.
+
+---
+
+## 3. Design System
+
+### Colors (dark theme primary)
+Defined in `Assets.xcassets` as Color Sets with dark-mode-first values:
+
+```swift
+enum AppColor {
+    static let bgPrimary      = Color("BgPrimary")      // #000000
+    static let bgSecondary    = Color("BgSecondary")    // #1C1C1E
+    static let bgTertiary     = Color("BgTertiary")     // #2C2C2E
+    static let textPrimary    = Color("TextPrimary")    // #FFFFFF
+    static let textSecondary  = Color("TextSecondary")  // #8E8E93
+    static let textTertiary   = Color("TextTertiary")   // #48484A
+    static let accentWhite    = Color.white
+    static let accentGreen    = Color("AccentGreen")    // #34C759
+    static let accentRed      = Color("AccentRed")      // #FF3B30
+    static let accentBlue     = Color("AccentBlue")     // #007AFF
+    static let accentOrange   = Color("AccentOrange")   // #FF9500 (flame)
+}
+```
+
+The app forces dark mode in v1 via `.preferredColorScheme(.dark)` on the root view. Light mode is a future enhancement.
+
+### Typography
+Use system font with these sizes:
+- Title: 28pt, semibold
+- Headline: 20pt, semibold
+- Body: 17pt, regular
+- Subhead: 15pt, regular
+- Caption: 13pt, regular
+
+Habit names are 17pt semibold. Streak counts are 17pt bold.
+
+### Shape and spacing
+- Cards: `RoundedRectangle(cornerRadius: 16)`
+- Pills and circles: `Capsule()` or `Circle()`
+- Modal sheets: native `.sheet()` presentation with `.presentationDetents([.large])` or `.medium` where appropriate
+- Standard spacing: 4, 8, 12, 16, 24, 32
+
+### Reusable views
+- `HabitRowView`
+- `WeekCalendarView`
+- `CategoryChipView`
+- `WeekdayCircleView`
+- `FrequencySegmentedControl`
+- `CounterStepper`
+- `ToastView`
+- `FloatingActionButton`
+
+---
+
+## 4. Data Model
+
+Using SwiftData:
+
+```swift
+import SwiftData
+import Foundation
+
+enum FrequencyMode: String, Codable {
+    case daily
+    case weekly
+    case monthly
+}
+
+enum WeekDay: Int, Codable, CaseIterable {
+    case sunday = 1, monday, tuesday, wednesday, thursday, friday, saturday
+}
+
+@Model
+final class Habit {
+    @Attribute(.unique) var id: UUID
+    var name: String
+    var emoji: String
+    var frequencyRaw: String
+    var weekdaysRaw: [Int]      // stored as ints, mapped to WeekDay
+    var countPerPeriod: Int     // used for weekly and monthly
+    var reminderEnabled: Bool
+    var reminderHour: Int?
+    var reminderMinute: Int?
+    var createdAt: Date
+    var archivedAt: Date?
+    var order: Int
+
+    @Relationship(deleteRule: .cascade, inverse: \HabitCompletion.habit)
+    var completions: [HabitCompletion] = []
+
+    var frequency: FrequencyMode {
+        get { FrequencyMode(rawValue: frequencyRaw) ?? .daily }
+        set { frequencyRaw = newValue.rawValue }
+    }
+
+    var weekdays: [WeekDay] {
+        get { weekdaysRaw.compactMap { WeekDay(rawValue: $0) } }
+        set { weekdaysRaw = newValue.map { $0.rawValue } }
+    }
+
+    init(name: String, emoji: String, frequency: FrequencyMode) {
+        self.id = UUID()
+        self.name = name
+        self.emoji = emoji
+        self.frequencyRaw = frequency.rawValue
+        self.weekdaysRaw = WeekDay.allCases.map { $0.rawValue }
+        self.countPerPeriod = 1
+        self.reminderEnabled = false
+        self.createdAt = Date()
+        self.order = 0
+    }
+}
+
+@Model
+final class HabitCompletion {
+    @Attribute(.unique) var id: UUID
+    var date: Date              // normalized to start of day
+    var completedAt: Date
+    var habit: Habit?
+
+    init(date: Date, habit: Habit) {
+        self.id = UUID()
+        self.date = Calendar.current.startOfDay(for: date)
+        self.completedAt = Date()
+        self.habit = habit
+    }
+}
+```
+
+### Streak calculation
+Pure function in `StreakCalculator.swift`. Takes a `Habit` and returns an `Int`. Rules:
+
+- **Daily habits**: count consecutive scheduled days completed up to today. Skip days where the habit was not scheduled (those don't break or extend the streak).
+- **Weekly habits**: count consecutive weeks where completion count met `countPerPeriod`. A week boundary follows the user's preferred week start (Sunday or Monday).
+- **Monthly habits**: count consecutive calendar months where completion count met `countPerPeriod`.
+
+Streaks reset to 0 when a period closes without meeting the requirement.
+
+---
+
+## 5. Features
+
+### 5.1 Home Screen
+
+The default tab. Shows today's habits and quick access to the weekly view.
+
+**Layout, top to bottom:**
+1. Top bar: settings gear (left), "Habit Streak" title (center), trailing space empty (no crown since everything is free)
+2. Week calendar strip: 7 day circles showing M/T/W/T/F/S/S with date numbers below; today highlighted in white filled circle
+3. "Today" label (or formatted date if a different day is selected)
+4. Habit list (scrollable `LazyVStack`): each row shows a circular checkbox on the left, emoji, habit name, and (if streak > 0) flame emoji with streak count on the right
+5. Floating action button (+) in bottom-trailing corner opens the habit library
+6. Bottom navigation: a custom pill-shaped tab bar with Home and Insights icons
+
+**Interactions:**
+- **Tap checkbox**: marks habit complete for selected day. Animate green check with spring scale (0.8 → 1.0), strike through the name, trigger light haptic feedback. If first completion of the day, show toast: "First day of a long streak! Well done!"
+- **Tap row body**: opens habit detail (deferred to future; in v1 same as long-press menu)
+- **Long-press row**: triggers SwiftUI native `.contextMenu` with Share, Reorder, Edit, Archive, Delete options
+- **Tap day circle in week strip**: switches selected day. List re-renders with that day's scheduled habits.
+- **Swipe row left**: reveals quick actions (Edit, Delete) via `.swipeActions` modifier (iOS standard)
+- **Tap FAB**: presents habit library as a sheet
+
+**Empty state**: When no habits exist, show centered "No habits yet" message with prompt to tap +.
+
+### 5.2 Habit Creation Sheet
+
+Presented as a native `.sheet` with `.presentationDetents([.large])`. Same UI for create and edit (title and CTA label change).
+
+**Fields:**
+
+| Field | Behavior |
+|-------|----------|
+| Name | `TextField`, required. Emoji chip on trailing side opens emoji picker. |
+| Frequency | Segmented control: Daily / Weekly / Monthly (custom Picker styled to match the design). |
+| Daily controls | 7 circular weekday buttons (S M T W T F S). Selected days white-filled, unselected dark. Above the picker, show comma-separated selected day names. Default: all 7 selected. |
+| Weekly controls | Stepper labeled "Nx / week". Range 1 to 7. Default 1. |
+| Monthly controls | Stepper labeled "Nx / month". Range 1 to 999 (no practical cap; supports high counts for tracking sub-daily habits monthly). Default 1. |
+| Reminder | iOS `Toggle`. When on, reveals a time picker below. Default time: current time rounded to nearest 5 minutes. |
+
+**Footer**: "Create habit" button (or "Save changes" in edit mode) as a full-width white capsule pinned to the bottom.
+
+**Validation:**
+- Name must be non-empty
+- For Daily mode, at least one weekday must be selected
+- Stepper minus button disabled at value 1
+
+**On submit:**
+- Create or update the `Habit` model in SwiftData
+- If reminder is enabled, schedule a `UNNotificationRequest` for the specified time
+- Dismiss sheet and return to home
+
+### 5.3 Habit Library Sheet
+
+Presented when the FAB is tapped. Lets the user pick from pre-built templates or create a fully custom habit.
+
+**Categories** (horizontal scrolling chip selector):
+- ⭐ Popular
+- 🌿 Health & Nutrition
+- 💪 Fitness
+- 🧘 Mindfulness
+- 🚀 Productivity
+- 💰 Finance
+- 🚫 Break bad habits
+
+**Search bar** at the top filters templates by name across all categories.
+
+**Per category**: a section header, subheading, and vertical list of habit cards (emoji, name, description). Tapping a card pre-fills the creation sheet with that template's defaults.
+
+**Sticky footer**: "Create a custom habit" white button at the bottom of the sheet (always visible).
+
+**Initial template set** (define in `Templates.swift`):
+
+**Popular**: Gym Workout 🏋️, Drink Enough Water 💧, 7h Sleep 😴, Read a Book 📖, Meditation 🧘, 10k Steps 👣, Eat Healthier 🥦, Social Media Limit 📵
+
+**Productivity**: Plan Your Day 📅, Deep Work 💻, Make Bed 🛏️, Wake Up at Consistent Time ⏰, Prepare for Tomorrow ✍️, No Screen 1h Before Bed 💻
+
+**Break bad habits**: No Junk Food 🍟, Sugar Resist 🍬, Alcohol Free 🚫, No Smoking 🚭, No Snooze ⏰, No Eating Out 🍽️
+
+Add 5 to 8 templates per remaining category. All templates are free.
+
+### 5.4 Insights Screen
+
+The second tab. All time ranges and analytics are completely free.
+
+**Layout, top to bottom:**
+1. Top bar: settings gear (left), "Insights" title (center)
+2. Time range tabs: **W / M / Y / All** (all four unlocked)
+3. Date range label (e.g., "May 11, 2026 to May 17, 2026") with left/right chevron arrows for period navigation
+4. Stats grid (two cards side by side): **Completions** count, **Completion Rate** %
+5. **Activity Heatmap**: 7×26 grid (rows = days of week, columns = weeks). Cell intensity based on completion count that day. Empty cells dark gray, completions in shades of green. Built as custom SwiftUI view using `LazyVGrid`.
+6. **Progress chart**: bar chart showing completion percentage per day in the selected range. Built with `Charts` framework (`BarMark`).
+7. **Top Performing Habits**: ranked list showing all habits with rank number, emoji, name, current streak, and completion %. No blur, no paywall. Show as many habits as the user has.
+
+**Calculations:**
+- Completions: total habit-completions in the selected range
+- Completion Rate: `completions / scheduledHabitDays × 100`
+- Heatmap intensity buckets: 0 (none), 1 (1 to 2), 2 (3 to 4), 3 (5+)
+- Top Performing: sort habits by completion rate within the range, descending
+
+### 5.5 Context Menu (per habit)
+
+Triggered by long-press on a habit row. Uses SwiftUI's native `.contextMenu` modifier for proper iOS feel including haptics and the system blur background.
+
+**Options:**
+- **Share**: presents `ShareLink` with text "I've kept up my [habit name] streak for [N] days!"
+- **Reorder**: enters list reorder mode. The list switches to allow drag-to-reorder via `.onMove`. Done button in nav bar exits reorder mode.
+- **Edit**: opens the creation sheet pre-filled with the habit's current values
+- **Archive**: hides the habit from home but preserves all completion data. Confirmation dialog: "Archive [habit]? You can restore it later from Settings."
+- **Delete**: removes the habit and cascades to delete its completions. Confirmation dialog: "Delete [habit]? This cannot be undone."
+
+### 5.6 Settings Screen
+
+Presented as a pushed view from the gear icon.
+
+Sections:
+- **Preferences**
+  - Week starts on: Sunday / Monday (`Picker`)
+  - Notifications: master toggle (links to system settings if denied)
+- **Archived habits**: list of archived habits with "Restore" action per row
+- **Data**
+  - Export data: shares a JSON file via `ShareLink`
+  - Reset to demo data: restores the seed dataset
+  - Clear all data: wipes the database after confirmation
+- **About**
+  - Version number
+  - Source code link (opens Safari)
+
+### 5.7 Notifications
+
+For habits with `reminderEnabled == true`:
+- Schedule a daily `UNCalendarNotificationTrigger` at the specified hour/minute
+- Notification title: habit name + emoji
+- Notification body: "Time for your daily habit. Keep the streak going!"
+- Request notification authorization on first reminder enabled
+
+If user denies notification permission, show a one-time alert explaining the feature won't work and offer a deep link to Settings.
+
+---
+
+## 6. State Management
+
+Use a single observable store injected via `@Environment`:
+
+```swift
+@Observable
+final class HabitStore {
+    var modelContext: ModelContext
+    var selectedDate: Date = Calendar.current.startOfDay(for: Date())
+    var weekStartsOn: WeekStartDay = .sunday
+
+    init(modelContext: ModelContext) {
+        self.modelContext = modelContext
+        loadPreferences()
+    }
+
+    // Habit CRUD
+    func addHabit(_ habit: Habit) { ... }
+    func updateHabit(_ habit: Habit) { ... }
+    func deleteHabit(_ habit: Habit) { ... }
+    func archiveHabit(_ habit: Habit) { ... }
+    func restoreHabit(_ habit: Habit) { ... }
+    func reorderHabits(_ habits: [Habit]) { ... }
+
+    // Completions
+    func toggleCompletion(habit: Habit, date: Date) { ... }
+    func isCompleted(habit: Habit, date: Date) -> Bool { ... }
+
+    // Derived
+    func streak(for habit: Habit) -> Int { ... }
+    func completionRate(in range: DateInterval) -> Double { ... }
+    func topPerformingHabits(in range: DateInterval) -> [Habit] { ... }
+
+    // Data
+    func exportJSON() -> Data { ... }
+    func resetToSeedData() { ... }
+    func clearAllData() { ... }
+}
+```
+
+Views query habits via `@Query` for live SwiftData updates. The store handles mutations and derived calculations.
+
+---
+
+## 7. File Structure
+
+```
+HabitTracker/
+  HabitTrackerApp.swift              // @main entry point
+  ContentView.swift                  // root tab view
+  Models/
+    Habit.swift
+    HabitCompletion.swift
+    Enums.swift                      // FrequencyMode, WeekDay
+  Views/
+    Home/
+      HomeView.swift
+      HabitRowView.swift
+      WeekCalendarView.swift
+      ToastView.swift
+    Creation/
+      HabitCreationSheet.swift
+      EmojiPickerView.swift
+      FrequencySegmentedControl.swift
+      WeekdayPickerView.swift
+      CounterStepperView.swift
+    Library/
+      HabitLibraryView.swift
+      CategoryChipView.swift
+      TemplateCardView.swift
+    Insights/
+      InsightsView.swift
+      ActivityHeatmapView.swift
+      ProgressChartView.swift
+      TopHabitsView.swift
+      StatCardView.swift
+    Settings/
+      SettingsView.swift
+      ArchivedHabitsView.swift
+    Components/
+      ToggleSwitchView.swift
+      FloatingActionButton.swift
+      BottomNavBar.swift
+      CircularCheckbox.swift
+  Services/
+    HabitStore.swift
+    StreakCalculator.swift
+    NotificationService.swift
+    SeedData.swift
+  Resources/
+    Templates.swift
+    Assets.xcassets
+  Extensions/
+    Date+Helpers.swift
+    Color+AppColors.swift
+```
+
+---
+
+## 8. Acceptance Criteria
+
+### Home screen
+- [ ] Week strip shows the current week with today in a white filled circle
+- [ ] Tapping a different day circle switches the list to that day's scheduled habits
+- [ ] Tapping the checkbox marks the habit complete with green check, strikethrough name, light haptic, and smooth scale animation
+- [ ] Flame icon and streak number appear only when streak ≥ 1
+- [ ] FAB presents the habit library sheet
+- [ ] Bottom navigation switches between Home and Insights without animation glitches
+- [ ] Long-press shows native context menu with all five options
+- [ ] Swipe left on a row reveals Edit and Delete quick actions
+
+### Creation sheet
+- [ ] All three frequency modes render their distinct sub-controls
+- [ ] Daily mode shows selected day names as comma-separated text above the weekday picker
+- [ ] Stepper minus button is disabled at value 1
+- [ ] Monthly stepper allows arbitrarily high values (no upper cap up to 999)
+- [ ] Reminder toggle reveals time picker when on
+- [ ] Create button is disabled until name is non-empty
+- [ ] Emoji picker opens on tap of the emoji chip
+- [ ] Editing an existing habit pre-fills all fields correctly
+
+### Library
+- [ ] Category chips scroll horizontally with the active category highlighted
+- [ ] Search bar filters templates across all categories live
+- [ ] Tapping a template pre-fills the creation sheet
+- [ ] "Create a custom habit" CTA stays pinned at the bottom of the sheet
+
+### Insights
+- [ ] All four time range tabs (W, M, Y, All) work without locks or paywall prompts
+- [ ] Heatmap renders 26 weeks of past data, even if mostly empty
+- [ ] Progress chart shows one bar per day in the selected range
+- [ ] Top Performing list shows all habits unblurred, ranked by completion rate
+- [ ] Date range chevrons navigate to previous and next periods
+
+### Notifications
+- [ ] Enabling reminder on a habit schedules a daily local notification
+- [ ] Disabling reminder cancels the scheduled notification
+- [ ] Updating a habit's reminder time updates the notification trigger
+- [ ] Notification authorization prompt appears on first reminder enabled
+
+### Persistence
+- [ ] All data survives app relaunch via SwiftData
+- [ ] Export creates a valid JSON file accessible through the share sheet
+- [ ] Reset to demo data restores the seed dataset
+- [ ] Clear all data wipes everything after confirmation
+
+### Accessibility
+- [ ] All interactive elements have `accessibilityLabel`
+- [ ] Dynamic Type is supported (text scales with system setting)
+- [ ] VoiceOver works for all flows
+- [ ] Color contrast meets WCAG AA
+
+---
+
+## 9. Seed Data
+
+On first launch (when SwiftData store is empty), seed with sample data so the heatmap, charts, and Top Performing list show meaningful content immediately:
+
+**Habits:**
+- 🏋️ Gym Workout — Daily on Mon/Wed/Fri
+- 😴 7h Sleep — Daily, all days
+- 🏃 Run — Daily on Tue/Thu/Sat
+- ♟️ Lichess Puzzles 15m — Daily, all days
+- 📖 Read a Book — Daily, all days
+
+**Completions:** backfill the last 30 days with realistic patterns. Suggested rates per habit:
+- Gym Workout: 85%
+- 7h Sleep: 70%
+- Run: 60%
+- Lichess Puzzles: 90%
+- Read a Book: 55%
+
+Add a "Reset to demo data" option in Settings so the user can restore this state any time.
+
+---
+
+## 10. Out of Scope (v1)
+
+- **Home screen widgets** (deferred to v2; requires a paid Apple Developer Program account for App Groups provisioning)
+- iCloud sync across devices
+- Apple Watch companion app
+- iPad-optimized layout
+- macOS variant
+- Lock Screen widgets
+- Live Activities
+- Light theme
+- Habit detail view with full per-habit history calendar
+- Numeric or quantity-based habits (e.g., "drink 8 glasses" with increment instead of binary check)
+- Calendar-style monthly recurrence (every 1st, every last Friday)
+- Habit grouping or tagging
+- Streak freezes or pauses
+
+---
+
+## 11. Future Enhancements
+
+Ordered roadmap after v1 ships. The first item assumes enrolling in the paid Apple Developer Program ($99/year) so App Groups can be provisioned:
+
+1. **Home screen widgets** (GitHub-style contribution heatmap): Single Habit and All Habits variants, in small, medium, and large sizes. Built with WidgetKit and App Intents. Reuses the in-app heatmap rendering via a shared component. Tap-to-open deep links into the app.
+2. Habit detail view with per-habit history calendar
+3. Lock Screen widgets (small circular and rectangular)
+4. Apple Watch app for quick check-offs
+5. iCloud sync via CloudKit
+6. Light theme support
+7. Numeric habits (drink 8 glasses, do 30 pushups)
+8. Calendar-style monthly recurrence rules
+9. Live Activities for daily progress
+10. Interactive widgets with tap-to-complete via App Intents
+
+---
+
+## 12. Implementation Notes for Cursor
+
+- Set deployment target to iOS 17.0 for SwiftData
+- Configure the SwiftData `ModelContainer` in `HabitTrackerApp.swift` and inject via `.modelContainer(for: [Habit.self, HabitCompletion.self])`
+- Use `@Query` in views for live-updating habit lists
+- Use `UIImpactFeedbackGenerator(style: .light)` for completion haptics
+- The week calendar strip should support horizontal swipe gestures for navigating past weeks (use `TabView` with `PageTabViewStyle` or `ScrollView` with paging)
+- Build the heatmap with `LazyVGrid` using a 7-column grid; each cell is a `RoundedRectangle` with color based on completion count
+- For the FAB, use `.overlay(alignment: .bottomTrailing)` on the main content
+- Store dates normalized to start-of-day via `Calendar.current.startOfDay(for:)` to avoid time-of-day comparison bugs
+- Use `Color("ColorName")` references throughout; never hardcode hex in views
+- Animate completion check with `.animation(.spring(response: 0.3, dampingFraction: 0.6), value: isCompleted)`
+- For reorder mode, use `EditButton` + `.onMove` for the standard iOS reorder UX
+- All confirmation dialogs use `.confirmationDialog` modifier
+- Use `ShareLink` for both habit sharing and JSON export
+
+---
+
+## 13. Testing
+
+Minimum coverage for v1:
+- Unit tests for `StreakCalculator` covering all three frequency modes and edge cases (gaps in completions, week boundary edge cases, leap years)
+- Unit tests for date helpers (week start handling, period boundaries)
+- Unit tests for `HabitStore` mutations (add, update, delete, archive, toggle completion)
+- Unit tests for the heatmap data builder covering intensity bucketing and date range handling
+- UI tests for the full habit creation flow
+- UI test for completion toggle and streak update on home screen
+
+Use XCTest. Place unit tests in `HabitTrackerTests/` and UI tests in `HabitTrackerUITests/`.
+
+---
+
+## 14. Portfolio Presentation Notes
+
+For the personal website showcase:
+- Record a 60-90 second screen recording demonstrating the full creation flow, completion toggling, and insights view including the GitHub-style heatmap
+- Capture 5 to 8 high-quality screenshots in iPhone frames for the project page
+- Write a project blurb covering: design fidelity to the inspiration, SwiftData usage, custom heatmap implementation, notification scheduling, and any technical decisions worth highlighting
+- Note the planned v2 roadmap (especially home screen widgets) so visitors understand the project is actively evolving
+- If publishing source: include a clean README with setup instructions, architecture overview, and credits to the original app for design inspiration
+
+---
+
+End of PRD.

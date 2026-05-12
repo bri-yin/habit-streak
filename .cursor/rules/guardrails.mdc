@@ -1,0 +1,15 @@
+---
+alwaysApply: true
+---
+
+# Guardrails
+
+- Always reference the specific PRD section number when implementing a feature. If asked to build something not in the PRD, ask for clarification before proceeding.
+- Never invent SwiftData model fields, API methods, or framework features. If unsure whether something exists in iOS 17 SwiftUI/SwiftData, say so and ask the user to verify.
+- When implementing a feature, list the files you plan to create or modify before writing code. Wait for confirmation.
+- For any new file, place it in the path specified by PRD section 7 (File Structure). If section 7 doesn't cover it, ask.
+- When building UI, use exact colors, spacing, and typography from PRD section 3. Do not introduce new design tokens.
+- After implementing a feature, list which acceptance criteria from PRD section 8 are now met.
+- If a build error mentions a missing type or method, check whether the file is added to the Xcode target before assuming a code issue.
+- Never write tests or fixtures unless explicitly asked.
+- Match Swift style: 4-space indent, explicit types on public APIs, prefer @Observable over ObservableObject for view models.
