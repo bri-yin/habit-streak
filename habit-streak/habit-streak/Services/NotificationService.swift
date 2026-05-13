@@ -83,7 +83,11 @@ final class NotificationService {
         dateComponents.minute = minute
         let trigger: UNCalendarNotificationTrigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
         let request: UNNotificationRequest = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
-        center.add(request) { _ in }
+        do {
+            try await center.add(request)
+        } catch {
+            // Scheduling failed — no UI spec in PRD for this path.
+        }
     }
 
     /// Re-schedule all habits (e.g. after master toggle).
