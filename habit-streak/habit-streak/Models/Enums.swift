@@ -20,3 +20,13 @@ enum WeekDay: Int, Codable, CaseIterable {
     case friday
     case saturday
 }
+
+enum WeekStartDay: String, Codable, CaseIterable {
+    case sunday
+    case monday
+    case tuesday
+    case wednesday
+    case thursday
+    case friday
+    case saturday
+}

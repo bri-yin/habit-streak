@@ -12,11 +12,13 @@ import SwiftUI
 @MainActor
 struct habit_streakApp: App {
     private let modelContainer: ModelContainer
+    private let habitStore: HabitStore
 
     init() {
         do {
             modelContainer = try ModelContainer(for: Habit.self, HabitCompletion.self)
-            try SeedData.applyInitialSeedIfNeeded(modelContext: modelContainer.mainContext)
+            habitStore = HabitStore(modelContext: modelContainer.mainContext)
+            try? habitStore.rescheduleAllRemindersForActiveHabits()
         } catch {
             fatalError("Failed to set up persistence: \(error)")
         }
@@ -25,6 +27,7 @@ struct habit_streakApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environment(habitStore)
         }
         .modelContainer(modelContainer)
     }
