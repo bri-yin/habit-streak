@@ -14,8 +14,14 @@ private struct DailyRatioPoint: Identifiable {
     let ratio: Double
 }
 
+enum ProgressChartGranularity: Equatable {
+    case day
+    case month
+}
+
 struct ProgressChartView: View {
     var dailyRatios: [(date: Date, ratio: Double)]
+    var granularity: ProgressChartGranularity = .day
 
     private var points: [DailyRatioPoint] {
         dailyRatios.map { DailyRatioPoint(id: $0.date, date: $0.date, ratio: $0.ratio) }
@@ -29,24 +35,20 @@ struct ProgressChartView: View {
 
             Chart(points) { item in
                 BarMark(
-                    x: .value("Day", item.date, unit: .day),
+                    x: .value("Day", item.date, unit: granularity == .day ? .day : .month),
                     y: .value("Percent", item.ratio)
                 )
                 .foregroundStyle(AppColor.accentGreen)
             }
             .chartXAxis {
-                AxisMarks(values: .stride(by: .day)) { _ in
-                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                        .foregroundStyle(AppColor.textTertiary)
+                AxisMarks(values: .stride(by: granularity == .day ? .day : .month)) { _ in
                     AxisTick()
-                    AxisValueLabel(format: .dateTime.month().day(), centered: true)
+                    AxisValueLabel(format: granularity == .day ? .dateTime.month().day() : .dateTime.month(.abbreviated), centered: true)
                         .foregroundStyle(AppColor.textSecondary)
                 }
             }
             .chartYAxis {
                 AxisMarks(position: .leading) { value in
-                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                        .foregroundStyle(AppColor.textTertiary)
                     AxisValueLabel {
                         if let v = value.as(Double.self) {
                             Text("\(Int(v))%")
@@ -55,8 +57,22 @@ struct ProgressChartView: View {
                     }
                 }
             }
+            .applyIf(granularity == .day) { view in
+                view.chartScrollableAxes(.horizontal)
+            }
             .frame(height: 200)
             .accessibilityLabel("Progress chart by day")
+        }
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func applyIf<Content: View>(_ condition: Bool, transform: (Self) -> Content) -> some View {
+        if condition {
+            transform(self)
+        } else {
+            self
         }
     }
 }

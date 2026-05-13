@@ -12,6 +12,7 @@ struct ActivityHeatmapView: View {
     var weekStartsOn: WeekStartDay
 
     private let cellSpacing: CGFloat = 4
+    private let cellSize: CGFloat = 12
     private let rows: Int = 7
     private let cols: Int = 26
 
@@ -31,22 +32,24 @@ struct ActivityHeatmapView: View {
                         Text(row < rowLabels.count ? rowLabels[row] : "")
                             .font(.system(size: 11, weight: .regular))
                             .foregroundStyle(AppColor.textSecondary)
-                            .frame(width: 16, height: 14)
+                            .frame(width: 16, height: cellSize)
                     }
                 }
-                LazyVGrid(
-                    columns: Array(repeating: GridItem(.flexible(minimum: 8), spacing: cellSpacing), count: cols),
-                    alignment: .leading,
-                    spacing: cellSpacing
-                ) {
-                    ForEach(0..<(rows * cols), id: \.self) { idx in
-                        let row: Int = idx / cols
-                        let col: Int = idx % cols
-                        let count: Int = (row < grid.count && col < grid[row].count) ? grid[row][col] : 0
-                        RoundedRectangle(cornerRadius: 3)
-                            .fill(cellColor(bucket: Self.intensityBucket(count)))
-                            .frame(height: 14)
-                            .accessibilityLabel("Week column \(col + 1), row \(row + 1), \(count) completions")
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyVGrid(
+                        columns: Array(repeating: GridItem(.fixed(cellSize), spacing: cellSpacing), count: cols),
+                        alignment: .leading,
+                        spacing: cellSpacing
+                    ) {
+                        ForEach(0..<(rows * cols), id: \.self) { idx in
+                            let row: Int = idx / cols
+                            let col: Int = idx % cols
+                            let count: Int = (row < grid.count && col < grid[row].count) ? grid[row][col] : 0
+                            RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                .fill(cellColor(bucket: Self.intensityBucket(count)))
+                                .frame(width: cellSize, height: cellSize)
+                                .accessibilityLabel("Week column \(col + 1), row \(row + 1), \(count) completions")
+                        }
                     }
                 }
             }

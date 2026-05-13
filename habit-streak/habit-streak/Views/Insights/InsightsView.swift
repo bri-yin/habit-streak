@@ -16,6 +16,7 @@ struct InsightsView: View {
 
     @State private var selectedTab: InsightsRangeTab = .week
     @State private var periodOffset: Int = 0
+    @State private var heatmapWeekOffset: Int = 0
 
     private var activeHabits: [Habit] {
         allHabits.filter { $0.archivedAt == nil }
@@ -74,14 +75,21 @@ struct InsightsView: View {
                         .font(.system(size: 28, weight: .semibold))
                         .foregroundStyle(AppColor.textPrimary)
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Color.clear.frame(width: 28, height: 28)
-                }
             }
             .toolbarBackground(AppColor.bgPrimary, for: .navigationBar)
         }
         .onChange(of: selectedTab) { _, _ in
             periodOffset = 0
+        }
+    }
+
+    private func handleSwipeToOlder() {
+        periodOffset += 1
+    }
+
+    private func handleSwipeToNewer() {
+        if periodOffset > 0 {
+            periodOffset -= 1
         }
     }
 
@@ -150,19 +158,37 @@ struct InsightsView: View {
     }
 
     private var heatmapSection: some View {
-        let grid: [[Int]] = (try? store.heatmapGrid(weekStartsOn: store.weekStartsOn)) ?? Array(repeating: Array(repeating: 0, count: 26), count: 7)
-        return ActivityHeatmapView(grid: grid, weekStartsOn: store.weekStartsOn)
+        let anchor: Date = store.calendar.date(byAdding: .day, value: -(heatmapWeekOffset * 7), to: Date()) ?? Date()
+        let grid: [[Int]] = (try? store.heatmapGrid(weekStartsOn: store.weekStartsOn, anchorDate: anchor)) ?? Array(repeating: Array(repeating: 0, count: 26), count: 7)
+        return GlassCard(contentPadding: 16) {
+            ActivityHeatmapView(grid: grid, weekStartsOn: store.weekStartsOn)
+        }
+        .contentShape(Rectangle())
+        .gesture(
+            DragGesture(minimumDistance: 20).onEnded { value in
+                guard abs(value.translation.width) > abs(value.translation.height) else { return }
+                if value.translation.width < 0 {
+                    heatmapWeekOffset += 1
+                } else if heatmapWeekOffset > 0 {
+                    heatmapWeekOffset -= 1
+                }
+            }
+        )
     }
 
     @ViewBuilder
     private var chartSection: some View {
-        let ratios: [(date: Date, ratio: Double)] = (try? store.dailyCompletionRatios(in: currentInterval, habits: allHabits)) ?? []
+        let config: (ratios: [(date: Date, ratio: Double)], granularity: ProgressChartGranularity) =
+            (selectedTab == .year || selectedTab == .all)
+                ? ((try? store.monthlyCompletionRatios(in: currentInterval, habits: allHabits)) ?? [], .month)
+                : ((try? store.dailyCompletionRatios(in: currentInterval, habits: allHabits)) ?? [], .day)
+        let ratios: [(date: Date, ratio: Double)] = config.ratios
+        let granularity: ProgressChartGranularity = config.granularity
         if ratios.isEmpty {
             EmptyView()
         } else {
-            ScrollView(.horizontal, showsIndicators: false) {
-                ProgressChartView(dailyRatios: ratios)
-                    .frame(minWidth: max(320, CGFloat(ratios.count) * 14))
+            GlassCard(contentPadding: 16) {
+                ProgressChartView(dailyRatios: ratios, granularity: granularity)
             }
         }
     }

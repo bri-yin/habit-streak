@@ -38,16 +38,16 @@ struct TopHabitsView: View {
                     .font(.system(size: 15, weight: .regular))
                     .foregroundStyle(AppColor.textSecondary)
             } else {
-                VStack(spacing: 0) {
-                    ForEach(Array(habits.enumerated()), id: \.element.id) { index, habit in
-                        topRow(rank: index + 1, habit: habit, percent: completionPercent(for: habit))
-                        if index < habits.count - 1 {
-                            Divider().background(AppColor.textTertiary)
+                GlassCard {
+                    VStack(spacing: 0) {
+                        ForEach(Array(habits.enumerated()), id: \.element.id) { index, habit in
+                            topRow(rank: index + 1, habit: habit, percent: completionPercent(for: habit))
+                            if index < habits.count - 1 {
+                                Divider().background(AppColor.textTertiary)
+                            }
                         }
                     }
                 }
-                .padding(16)
-                .background(RoundedRectangle(cornerRadius: 16).fill(AppColor.bgSecondary))
             }
         }
     }

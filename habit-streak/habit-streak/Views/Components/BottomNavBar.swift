@@ -21,9 +21,11 @@ struct BottomNavBar: View {
             tabButton(tab: .insights, systemImage: "chart.bar.fill", label: "Insights")
         }
         .padding(4)
-        .background(
+        .background(.ultraThinMaterial)
+        .clipShape(Capsule())
+        .overlay(
             Capsule()
-                .fill(AppColor.bgSecondary)
+                .stroke(Color.white.opacity(0.10), lineWidth: 1)
         )
         .padding(.horizontal, 24)
         .padding(.bottom, 8)
@@ -46,7 +48,7 @@ struct BottomNavBar: View {
             .padding(.vertical, 10)
             .background(
                 Capsule()
-                    .fill(isSelected ? AppColor.bgTertiary : Color.clear)
+                    .fill(isSelected ? AppColor.bgTertiary.opacity(0.55) : Color.clear)
             )
         }
         .buttonStyle(.plain)

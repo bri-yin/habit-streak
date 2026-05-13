@@ -101,8 +101,6 @@ struct HomeView: View {
                     if editMode.isEditing {
                         EditButton()
                             .foregroundStyle(AppColor.textPrimary)
-                    } else {
-                        Color.clear.frame(width: 28, height: 28)
                     }
                 }
             }

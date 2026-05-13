@@ -134,9 +134,9 @@ extension HabitStore {
     }
 
     /// PRD §5.4 — 7 rows × 26 columns; cell value = total completions that day across habits.
-    func heatmapGrid(weekStartsOn: WeekStartDay) throws -> [[Int]] {
+    func heatmapGrid(weekStartsOn: WeekStartDay, anchorDate: Date = Date()) throws -> [[Int]] {
         let cal: Calendar = DateHelpers.calendar(firstWeekday: weekStartsOn)
-        let anchorStart: Date = DateHelpers.startOfWeek(containing: Date(), weekStartsOn: weekStartsOn)
+        let anchorStart: Date = DateHelpers.startOfWeek(containing: anchorDate, weekStartsOn: weekStartsOn)
         let oldestWeekStart: Date = cal.date(byAdding: .weekOfYear, value: -25, to: cal.startOfDay(for: anchorStart)) ?? anchorStart
         let countsByDay: [Date: Int] = try completionCountsByDay()
 
@@ -172,6 +172,42 @@ extension HabitStore {
                 }
             }
             result.append((day, Double(done) / Double(scheduled) * 100))
+        }
+        return result
+    }
+
+    /// Completion ratio aggregated by calendar month in `interval` (all active habits).
+    /// Used for a Health-style "Y / All" chart to avoid rendering hundreds of daily bars.
+    func monthlyCompletionRatios(in interval: DateInterval, habits: [Habit]) throws -> [(date: Date, ratio: Double)] {
+        let active: [Habit] = habits.filter { $0.archivedAt == nil }
+        let cal: Calendar = calendar
+        let startMonth: Date = DateHelpers.startOfMonth(containing: interval.start, calendar: cal)
+        let endMonth: Date = DateHelpers.startOfMonth(containing: interval.end, calendar: cal)
+
+        var result: [(Date, Double)] = []
+        var cursor: Date = cal.startOfDay(for: startMonth)
+        while cursor <= endMonth {
+            let monthStart: Date = DateHelpers.startOfMonth(containing: cursor, calendar: cal)
+            let monthEnd: Date = DateHelpers.endOfMonth(containing: cursor, calendar: cal)
+            let days: [Date] = DateHelpers.eachDay(from: monthStart, through: monthEnd, calendar: cal)
+
+            var scheduled: Int = 0
+            var done: Int = 0
+            for day in days {
+                let scheduledHabits: [Habit] = active.filter { DateHelpers.isHabitScheduled($0, on: day, calendar: cal) }
+                scheduled += scheduledHabits.count
+                for habit in scheduledHabits {
+                    if habit.completions.contains(where: { cal.startOfDay(for: $0.date) == day }) {
+                        done += 1
+                    }
+                }
+            }
+
+            let ratio: Double = scheduled == 0 ? 0 : Double(done) / Double(scheduled) * 100
+            result.append((monthStart, min(100, ratio)))
+
+            guard let next = cal.date(byAdding: .month, value: 1, to: monthStart) else { break }
+            cursor = cal.startOfDay(for: next)
         }
         return result
     }

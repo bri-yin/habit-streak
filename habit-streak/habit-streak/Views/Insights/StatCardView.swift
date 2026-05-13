@@ -12,18 +12,18 @@ struct StatCardView: View {
     var valueText: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.system(size: 15, weight: .regular))
-                .foregroundStyle(AppColor.textSecondary)
-            Text(valueText)
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(AppColor.textPrimary)
+        GlassCard {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(title)
+                    .font(.system(size: 15, weight: .regular))
+                    .foregroundStyle(AppColor.textSecondary)
+                Text(valueText)
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(AppColor.textPrimary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(title), \(valueText)")
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(RoundedRectangle(cornerRadius: 16).fill(AppColor.bgSecondary))
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(title), \(valueText)")
     }
 }
