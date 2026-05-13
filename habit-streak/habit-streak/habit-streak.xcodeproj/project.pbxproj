@@ -22,6 +22,7 @@
 /* Begin PBXFileReference section */
 		89306A952FB3B8D2005EDA02 /* habit-streak.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "habit-streak.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		89306AAB2FB3BBBC005EDA02 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		893937F72FB528C1006CCD2F /* habit-streak.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "habit-streak.xcodeproj"; sourceTree = "<group>"; };
 		89DDFB152FB3F2510008C7B5 /* habit-streak.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "habit-streak.xcodeproj"; sourceTree = "<group>"; };
 		89DDFB892FB3FBCF0008C7B5 /* habit-streak.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "habit-streak.xcodeproj"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -68,6 +69,11 @@
 				89306AAB2FB3BBBC005EDA02 /* SwiftUI.framework */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		893937F82FB528C1006CCD2F /* Products */ = {
+			isa = PBXGroup;
+			name = Products;
 			sourceTree = "<group>";
 		};
 		89DDFB162FB3F2510008C7B5 /* Products */ = {
@@ -141,6 +147,10 @@
 				{
 					ProductGroup = 89DDFB162FB3F2510008C7B5 /* Products */;
 					ProjectRef = 89DDFB152FB3F2510008C7B5 /* habit-streak.xcodeproj */;
+				},
+				{
+					ProductGroup = 893937F82FB528C1006CCD2F /* Products */;
+					ProjectRef = 893937F72FB528C1006CCD2F /* habit-streak.xcodeproj */;
 				},
 			);
 			projectRoot = "";
@@ -301,6 +311,7 @@
 				DEVELOPMENT_TEAM = WKLHXFSSK6;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "habit streak";
 				INFOPLIST_KEY_NSUserNotificationsUsageDescription = "Get reminded to complete habits you've scheduled.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -336,6 +347,7 @@
 				DEVELOPMENT_TEAM = WKLHXFSSK6;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "habit streak";
 				INFOPLIST_KEY_NSUserNotificationsUsageDescription = "Get reminded to complete habits you've scheduled.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
