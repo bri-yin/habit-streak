@@ -33,9 +33,11 @@ struct EmojiPickerView: View {
                                 Text(verbatim: emoji)
                                     .font(.system(size: 32))
                                     .frame(width: 48, height: 48)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .fill(selectedEmoji == emoji ? AppColor.bgTertiary : Color.clear)
+                                    .liquidGlass(
+                                        in: RoundedRectangle(cornerRadius: 12, style: .continuous),
+                                        interactive: true,
+                                        tint: selectedEmoji == emoji ? AppColor.accentBlue : nil,
+                                        fallback: selectedEmoji == emoji ? AppColor.bgTertiary : .clear
                                     )
                             }
                             .buttonStyle(.plain)

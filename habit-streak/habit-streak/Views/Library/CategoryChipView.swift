@@ -16,12 +16,14 @@ struct CategoryChipView: View {
         Button(action: action) {
             Text(title)
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(isSelected ? AppColor.bgPrimary : AppColor.textSecondary)
+                .foregroundStyle(isSelected ? AppColor.textPrimary : AppColor.textSecondary)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
-                .background(
-                    Capsule()
-                        .fill(isSelected ? AppColor.textPrimary : AppColor.bgTertiary)
+                .liquidGlass(
+                    in: Capsule(),
+                    interactive: true,
+                    tint: isSelected ? AppColor.accentBlue : nil,
+                    fallback: isSelected ? AppColor.accentBlue : AppColor.bgTertiary
                 )
         }
         .buttonStyle(.plain)

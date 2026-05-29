@@ -235,10 +235,10 @@ struct HabitCreationSheet: View {
         } label: {
             Text(isEditMode ? "Save changes" : "Create habit")
                 .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(AppColor.bgPrimary)
+                .foregroundStyle(AppColor.textPrimary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
-                .background(Capsule().fill(AppColor.textPrimary))
+                .liquidGlass(in: Capsule(), interactive: true, tint: AppColor.accentBlue, fallback: AppColor.accentBlue)
         }
         .buttonStyle(.plain)
         .disabled(!isValid)

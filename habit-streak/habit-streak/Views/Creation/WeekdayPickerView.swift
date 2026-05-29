@@ -40,11 +40,13 @@ struct WeekdayPickerView: View {
         } label: {
             Text(letter)
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(isOn ? AppColor.bgPrimary : AppColor.textSecondary)
+                .foregroundStyle(isOn ? AppColor.textPrimary : AppColor.textSecondary)
                 .frame(width: 40, height: 40)
-                .background(
-                    Circle()
-                        .fill(isOn ? AppColor.textPrimary : AppColor.bgTertiary)
+                .liquidGlass(
+                    in: Circle(),
+                    interactive: true,
+                    tint: isOn ? AppColor.accentBlue : nil,
+                    fallback: isOn ? AppColor.accentBlue : AppColor.bgTertiary
                 )
         }
         .buttonStyle(.plain)

@@ -13,16 +13,22 @@ struct CircularCheckbox: View {
 
     var body: some View {
         ZStack {
-            Circle()
-                .strokeBorder(AppColor.textTertiary, lineWidth: 2)
-                .frame(width: 28, height: 28)
             if isCompleted {
-                Circle()
-                    .fill(AppColor.accentGreen)
-                    .frame(width: 28, height: 28)
                 Image(systemName: "checkmark")
                     .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(AppColor.bgPrimary)
+                    .foregroundStyle(AppColor.textPrimary)
+            }
+        }
+        .frame(width: 28, height: 28)
+        .liquidGlass(
+            in: Circle(),
+            interactive: true,
+            tint: isCompleted ? AppColor.accentGreen : nil,
+            fallback: .clear
+        )
+        .overlay {
+            if !isCompleted {
+                Circle().strokeBorder(AppColor.textTertiary, lineWidth: 2)
             }
         }
         .scaleEffect(isCompleted ? 1.0 : 0.8)

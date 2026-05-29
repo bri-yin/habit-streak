@@ -101,12 +101,14 @@ struct InsightsView: View {
                 } label: {
                     Text(tab.rawValue)
                         .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(selectedTab == tab ? AppColor.bgPrimary : AppColor.textSecondary)
+                        .foregroundStyle(selectedTab == tab ? AppColor.textPrimary : AppColor.textSecondary)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
-                        .background(
-                            Capsule()
-                                .fill(selectedTab == tab ? AppColor.textPrimary : AppColor.bgTertiary)
+                        .liquidGlass(
+                            in: Capsule(),
+                            interactive: true,
+                            tint: selectedTab == tab ? AppColor.accentBlue : nil,
+                            fallback: selectedTab == tab ? AppColor.accentBlue : AppColor.bgTertiary
                         )
                 }
                 .buttonStyle(.plain)
@@ -124,7 +126,10 @@ struct InsightsView: View {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(AppColor.textPrimary)
+                    .frame(width: 40, height: 40)
+                    .liquidGlass(in: Circle(), interactive: true, fallback: AppColor.bgTertiary)
             }
+            .buttonStyle(.plain)
             .accessibilityLabel("Previous period")
 
             Spacer()
@@ -142,7 +147,10 @@ struct InsightsView: View {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(periodOffset > 0 ? AppColor.textPrimary : AppColor.textTertiary)
+                    .frame(width: 40, height: 40)
+                    .liquidGlass(in: Circle(), interactive: true, fallback: AppColor.bgTertiary)
             }
+            .buttonStyle(.plain)
             .disabled(periodOffset == 0)
             .accessibilityLabel("Next period")
         }

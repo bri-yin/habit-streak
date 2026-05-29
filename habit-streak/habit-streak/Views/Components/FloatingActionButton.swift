@@ -15,9 +15,9 @@ struct FloatingActionButton: View {
         Button(action: action) {
             Image(systemName: "plus")
                 .font(.system(size: 22, weight: .semibold))
-                .foregroundStyle(AppColor.bgPrimary)
+                .foregroundStyle(AppColor.textPrimary)
                 .frame(width: 56, height: 56)
-                .background(Circle().fill(AppColor.textPrimary))
+                .liquidGlass(in: Circle(), interactive: true, fallback: AppColor.bgTertiary)
         }
         .buttonStyle(.plain)
         .shadow(color: Color.black.opacity(0.35), radius: 12, y: 6)

@@ -120,11 +120,13 @@ struct WeekCalendarView: View {
                     .foregroundStyle(AppColor.textSecondary)
                 Text("\(cal.component(.day, from: date))")
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(isToday ? AppColor.bgPrimary : (isSelected ? AppColor.textPrimary : AppColor.textSecondary))
+                    .foregroundStyle(isToday || isSelected ? AppColor.textPrimary : AppColor.textSecondary)
                     .frame(width: 36, height: 36)
-                    .background(
-                        Circle()
-                            .fill(circleFill(isToday: isToday, isSelected: isSelected))
+                    .liquidGlass(
+                        in: Circle(),
+                        interactive: true,
+                        tint: isToday ? AppColor.accentBlue : nil,
+                        fallback: circleFill(isToday: isToday, isSelected: isSelected)
                     )
             }
             .frame(maxWidth: .infinity)
@@ -133,9 +135,10 @@ struct WeekCalendarView: View {
         .accessibilityLabel(Text(accessibilityDayLabel(date: date)))
     }
 
+    /// Pre-iOS 26 fallback fill (iOS 26+ uses Liquid Glass instead).
     private func circleFill(isToday: Bool, isSelected: Bool) -> Color {
         if isToday {
-            return AppColor.textPrimary
+            return AppColor.accentBlue
         }
         if isSelected {
             return AppColor.bgTertiary

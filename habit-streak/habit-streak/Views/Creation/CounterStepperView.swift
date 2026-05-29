@@ -24,9 +24,11 @@ struct CounterStepperView: View {
                         value -= 1
                     }
                 } label: {
-                    Image(systemName: "minus.circle.fill")
-                        .font(.system(size: 28))
+                    Image(systemName: "minus")
+                        .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(value > range.lowerBound ? AppColor.textPrimary : AppColor.textTertiary)
+                        .frame(width: 40, height: 40)
+                        .liquidGlass(in: Circle(), interactive: true, fallback: AppColor.bgTertiary)
                 }
                 .buttonStyle(.plain)
                 .disabled(value <= range.lowerBound)
@@ -42,9 +44,11 @@ struct CounterStepperView: View {
                         value += 1
                     }
                 } label: {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 28))
+                    Image(systemName: "plus")
+                        .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(value < range.upperBound ? AppColor.textPrimary : AppColor.textTertiary)
+                        .frame(width: 40, height: 40)
+                        .liquidGlass(in: Circle(), interactive: true, fallback: AppColor.bgTertiary)
                 }
                 .buttonStyle(.plain)
                 .disabled(value >= range.upperBound)

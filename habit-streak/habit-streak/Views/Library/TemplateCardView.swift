@@ -31,9 +31,10 @@ struct TemplateCardView: View {
                 Spacer(minLength: 0)
             }
             .padding(16)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(AppColor.bgSecondary)
+            .liquidGlass(
+                in: RoundedRectangle(cornerRadius: 16, style: .continuous),
+                interactive: true,
+                fallback: AppColor.bgSecondary
             )
         }
         .buttonStyle(.plain)

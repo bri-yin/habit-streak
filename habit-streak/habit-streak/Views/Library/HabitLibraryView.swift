@@ -162,10 +162,10 @@ struct HabitLibraryView: View {
         } label: {
             Text("Create a custom habit")
                 .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(AppColor.bgPrimary)
+                .foregroundStyle(AppColor.textPrimary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
-                .background(Capsule().fill(AppColor.textPrimary))
+                .liquidGlass(in: Capsule(), interactive: true, tint: AppColor.accentBlue, fallback: AppColor.accentBlue)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Create a custom habit")
